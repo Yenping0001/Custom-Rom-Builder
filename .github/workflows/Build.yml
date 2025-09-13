@@ -48,8 +48,8 @@ jobs:
       run: |
         cd rom
         source build/envsetup.sh
-        lunch lineage_${{ github.event.inputs.device }}-userdebug
-
+        lunch infinity_a32x-userdebug
+        
     - name: ⚙️ Build ROM
       run: |
         cd rom
