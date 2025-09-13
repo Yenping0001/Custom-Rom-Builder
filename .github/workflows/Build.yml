@@ -1,0 +1,56 @@
+name: Build Infinity X
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Infinity X ROM
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout manifest
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y bc bison build-essential curl flex git gnupg gperf libncurses5-dev \
+          libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools \
+          xsltproc zip zlib1g-dev openjdk-11-jdk
+
+    - name: Set up environment
+      run: |
+        echo "Setting up build environment..."
+        mkdir -p ~/rom && cd ~/rom
+        git config --global user.name Yenping0001
+        git config --global user.email githubgino@outlook.com
+
+    - name: Clone kernel, device, and vendor trees
+      run: |
+        cd ~/rom
+        git clone https://github.com/Yenping0001/android_kernel_samsung_a32x.git kernel/samsung/a32x
+        git clone -b twrp https://github.com/Yenping0001/android_device_samsung_a32x.git device/samsung/a32x
+        git clone -b master https://github.com/Yenping0001/vendor_samsung_a32x.git vendor/samsung/a32x
+
+    - name: Sync ROM source
+      run: |
+        cd ~/rom
+        repo init -u https://github.com/InfinityX/manifest.git -b main --depth=1
+        repo sync -c --force-sync --no-tags --no-clone-bundle -j$(nproc --all)
+
+    - name: Start build
+      run: |
+        cd ~/rom
+        source build/envsetup.sh
+        lunch infinityx_a32x-userdebug
+        make -j$(nproc --all)
+
+    - name: Upload latest build
+      uses: actions/upload-artifact@v4
+      with:
+        name: InfinityX-A32-Latest
+        path: ~/rom/out/target/product/a32/*.zip
