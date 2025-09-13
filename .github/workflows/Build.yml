@@ -32,8 +32,8 @@ jobs:
     - name: 🌀 Initialize ROM repo
       run: |
         mkdir rom && cd rom
-        curl https://storage.googleapis.com/git-repo-downloads/repo > /bin/repo
-        chmod +x /bin/repo
+        sudo curl https://storage.googleapis.com/git-repo-downloads/repo > /bin/repo
+        sudo chmod +x /bin/repo
         repo init
         repo init -u ${{ github.event.inputs.rom_manifest }} -b ${{ github.event.inputs.rom_branch }} --depth=1
         repo sync -c --force-sync --no-tags --no-clone-bundle -j$(nproc --all)
