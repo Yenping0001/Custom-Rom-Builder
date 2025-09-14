@@ -1,17 +1,7 @@
-name: Build Android ROM
+name: Build Custom ROM
 
 on:
   workflow_dispatch:
-    inputs:
-      device:
-        description: 'Device codename (e.g. a32x)'
-        required: true
-      rom_manifest:
-        description: 'ROM manifest URL (e.g. https://github.com/LineageOS/android)'
-        required: true
-      rom_branch:
-        description: 'ROM branch (e.g. lineage-20)'
-        required: true
 
 jobs:
   build:
@@ -19,46 +9,37 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: 📦 Checkout
+    - name: Checkout manifest repo
       uses: actions/checkout@v4
 
-    - name: 🧰 Install dependencies
+    - name: Set up dependencies
       run: |
-        sudo apt update
-        sudo apt install -y repo git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib \
-          libc6-dev-i386 x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils \
-          xsltproc unzip python-is-python3 python3-pip openjdk-17-jdk
+        sudo apt-get update
+        sudo apt-get install -y git curl python3
 
-    - name: 🌀 Initialize ROM repo
+    - name: Clone repo tool manually
+      run: |
+        mkdir -p ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
+
+    - name: Initialize repo and sync
       run: |
         mkdir rom && cd rom
-        sudo curl https://storage.googleapis.com/git-repo-downloads/repo > /bin/repo
-        sudo chmod +x /bin/repo
-        repo init
-        repo init -u ${{ github.event.inputs.rom_manifest }} -b ${{ github.event.inputs.rom_branch }} --depth=1
-        repo sync -c --force-sync --no-tags --no-clone-bundle -j$(nproc --all)
+        repo init -u https://github.com/ProjectInfinity-X/manifest.git -b 16
+        repo sync -j$(nproc --all)
 
-    - name: 📥 Clone device, kernel, vendor trees
+    - name: Clone device, vendor, kernel trees
       run: |
-        cd rom
-        git clone -b twrp https://github.com/Yenping0001/android_device_samsung_a32x.git device/samsung/a32x
-        git clone https://github.com/Yenping0001/android_kernel_samsung_a32x.git kernel/samsung/a32x
-        git clone -b master https://github.com/Yenping0001/vendor_samsung_a32x.git vendor/samsung/a32x
+        bash scripts/clone-trees.sh
 
-    - name: 🧪 Setup environment
+    - name: Build ROM
       run: |
-        cd rom
-        source build/envsetup.sh
-        lunch infinity_a32x-userdebug
-        
-    - name: ⚙️ Build ROM
-      run: |
-        cd rom
-        make -j$(nproc --all) bacon
+        bash scripts/build-rom.sh
 
-    - name: 📤 Upload ROM output (Artifacts v4)
+    - name: Upload ROM artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: rom-${{ github.event.inputs.device }}
-        path: rom/out/target/product/${{ github.event.inputs.device }}/*.zip
-        retention-days: 7
+        name: ROM-Zip
+        path: out/target/product/*/*.zip
