@@ -1,4 +1,4 @@
-name: Build Custom ROM
+name: Build Project Infinity X ROM
 
 on:
   workflow_dispatch:
@@ -6,40 +6,49 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
 
     steps:
-    - name: Checkout manifest repo
+    - name: 🧼 Clean workspace
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-    - name: Set up dependencies
+    - name: 🕰️ Set up build environment
       run: |
+        sudo rm -rf /etc/apt/sources.list.d/*
+        sudo apt-mark hold grub-efi-amd64-signed
         sudo apt-get update
-        sudo apt-get install -y git curl python3
+        sudo apt-get install -y git curl python3 unzip bc
 
-    - name: Clone repo tool manually
+    - name: 📦 Clone repo binary manually
       run: |
         mkdir -p ~/bin
-        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        curl -o ~/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
         chmod a+x ~/bin/repo
-        echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
+        echo 'export PATH=~/bin:$PATH' >> $GITHUB_ENV
 
-    - name: Initialize repo and sync
+    - name: 📁 Initialize repo
       run: |
         mkdir rom && cd rom
         repo init -u https://github.com/ProjectInfinity-X/manifest.git -b 16
-        repo sync -j$(nproc --all)
+        repo sync -c --no-tags --no-clone-bundle --optimized-fetch --prune
 
-    - name: Clone device, vendor, kernel trees
+    - name: 📥 Clone device, vendor, kernel trees
       run: |
-        bash scripts/clone-trees.sh
+        cd rom
+        git clone -b twrp https://github.com/Yenping0001/android_device_samsung_a32x.git device/samsung/a32x
+        git clone -b master https://github.com/Yenping0001/vendor_samsung_a32x.git vendor/samsung
+        git clone https://github.com/Yenping0001/android_kernel_samsung_a32x.git kernel/samsung/a32x
 
-    - name: Build ROM
+    - name: ⚙️ Start build
       run: |
-        bash scripts/build-rom.sh
+        cd rom
+        source build/envsetup.sh
+        lunch infinity_a32x-userdebug
+        make -j$(nproc) otapackage
 
-    - name: Upload ROM artifacts
+    - name: 📤 Upload ROM zip
       uses: actions/upload-artifact@v4
       with:
-        name: ROM-Zip
-        path: out/target/product/*/*.zip
+        name: InfinityX-ROM
+        path: rom/out/target/product/*/*.zip
