@@ -22,10 +22,9 @@ jobs:
 
     - name: 📦 Clone repo binary manually
       run: |
-        mkdir -p ~/bin
-        curl -o ~/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
-        chmod a+x ~/bin/repo
-        echo 'export PATH=~/bin:$PATH' >> $GITHUB_ENV
+        sudo curl -o /bin/repo https://storage.googleapis.com/git-repo-downloads/repo
+        sudo chmod a+x /bin/repo
+        sudo echo 'export PATH=/bin:$PATH' >> $GITHUB_ENV
 
     - name: 📁 Initialize repo
       run: |
